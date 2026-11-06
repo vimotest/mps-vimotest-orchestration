@@ -19,3 +19,6 @@
 [submodule "CppBaseLanguage"]
 	path = CppBaseLanguage
 	url = https://github.com/Fumapps/CppBaseLanguage.git
+[submodule "mps-alfi"]
+	path = mps-alfi
+	url = https://github.com/Fumapps/mps-alfi-rework.git
