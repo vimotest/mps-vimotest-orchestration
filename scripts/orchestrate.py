@@ -246,6 +246,14 @@ def cmd_sync_scripts(args: argparse.Namespace) -> None:
                 wrapper_props.write_text(new_props, encoding="utf-8")
                 print(f"[{repo['id']}] Upgraded Gradle wrapper to 8.10.2")
 
+        # Ensure gradlew executable bit is set
+        gradlew_path = repo_path / "gradlew"
+        if gradlew_path.exists():
+            try:
+                os.chmod(gradlew_path, 0o755)
+            except Exception:
+                pass
+
 def cmd_migrate(args: argparse.Namespace) -> None:
     config = load_config()
     repo = get_repo_by_id(config, args.repo)

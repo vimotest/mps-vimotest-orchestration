@@ -1,3 +1,6 @@
 [submodule "mps-gradle-scripts"]
 	path = mps-gradle-scripts
 	url = https://github.com/vimotest/mps-gradle-scripts.git
+[submodule "mps-gradle-setup-sample"]
+	path = mps-gradle-setup-sample
+	url = https://github.com/Fumapps/mps-gradle-setup-sample.git
