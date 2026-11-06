@@ -25,3 +25,6 @@
 [submodule "mps-alfi-samples"]
 	path = mps-alfi-samples
 	url = https://github.com/vimotest/mps-alfi-samples.git
+[submodule "mps-vimotest"]
+	path = mps-vimotest
+	url = https://github.com/vimotest/mps-vimotest.git
