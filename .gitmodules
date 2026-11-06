@@ -7,3 +7,6 @@
 [submodule "vimotest-requirements-dsl"]
 	path = vimotest-requirements-dsl
 	url = https://github.com/vimotest/vimotest-requirements-dsl.git
+[submodule "textGenGen-fum"]
+	path = textGenGen-fum
+	url = https://github.com/Fumapps/textGenGen.git

@@ -42,8 +42,8 @@
       "id": "textGenGen-fum",
       "name": "TextGenGen Fum",
       "path": "textGenGen-fum",
-      "url": "https://github.com/Fumapps/textGenGen-fum.git",
-      "sshUrl": "git@github.com:Fumapps/textGenGen-fum.git",
+      "url": "https://github.com/Fumapps/textGenGen.git",
+      "sshUrl": "git@github.com:Fumapps/textGenGen.git",
       "type": "tooling",
       "dependencies": ["mps-gradle-scripts"],
       "description": "TextGen generation extension"
