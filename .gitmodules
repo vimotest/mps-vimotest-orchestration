@@ -28,3 +28,6 @@
 [submodule "mps-vimotest"]
 	path = mps-vimotest
 	url = https://github.com/vimotest/mps-vimotest.git
+[submodule "mps-vimotest-samples"]
+	path = mps-vimotest-samples
+	url = https://github.com/vimotest/mps-vimotest-samples.git
