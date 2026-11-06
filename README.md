@@ -77,16 +77,16 @@ The tracer bullet proves that migrating the foundation to MPS 2026.1 is technica
 
 | # | Repository | Submodule Path | Dependencies | Status (MPS 2026.1) | Tag |
 |---|------------|----------------|--------------|---------------------|-----|
-| 1 | **mps-gradle-scripts** (first) | `mps-gradle-scripts` | *None* | **MIGRATED & VERIFIED** | `v2026.1.0` |
-| 2 | **Gradle Setup Sample** | `mps-gradle-setup-sample` | `mps-gradle-scripts` | **BUILT & TESTED** (1/1) | `v2026.1.0` |
-| 3 | **mps-requirements-dsl** | `vimotest-requirements-dsl` | `mps-gradle-scripts` | **BUILT & VERIFIED** | `v2026.1.0` |
-| 4 | **TextGenGen Fum** | `textGenGen-fum` | `mps-gradle-scripts` | **BUILT & TESTED** (2/2) | `v2026.1.0` |
-| 5 | **Editor2PDF** | `Editor2PDF` | `mps-gradle-scripts` | **BUILT & VERIFIED** | `v2026.1.0` |
-| 6 | **CsBaseLanguage** | `CsBaseLanguage` | `mps-gradle-scripts` | **BUILT & TESTED** (10/10) | `v2026.1.0` |
-| 7 | **CppBaseLanguage** | `CppBaseLanguage` | `mps-gradle-scripts` | **BUILT & TESTED** (10/10) | `v2026.1.0` |
-| 8 | **mps-alfi** | `mps-alfi` | `CsBaseLanguage`, `CppBaseLanguage` | **BUILT & TESTED** (15/15) | `v2026.1.0` |
-| 9 | **mps-alfi-samples** | `mps-alfi-samples` | `mps-alfi` | **BUILT & VERIFIED** | `v2026.1.0` |
-| 10 | **mps-vimotest** | `mps-vimotest` | `vimotest-requirements-dsl`, `Editor2PDF`, `mps-alfi` | **BUILT & TESTED** (6/6) | `v2026.1.0` |
-| 11 | **mps-vimotest-samples** (last) | `mps-vimotest-samples` | `mps-vimotest` | **BUILT & TESTED** (13/13) | `v2026.1.0` |
+| 1 | **mps-gradle-scripts** (first) | `mps-gradle-scripts` | *None* | **MIGRATED & VERIFIED** | `2026.1.0` |
+| 2 | **Gradle Setup Sample** | `mps-gradle-setup-sample` | `mps-gradle-scripts` | **BUILT & TESTED** (1/1) | `2026.1.0` |
+| 3 | **mps-requirements-dsl** | `vimotest-requirements-dsl` | `mps-gradle-scripts` | **BUILT & VERIFIED** | `2026.1.0` |
+| 4 | **TextGenGen Fum** | `textGenGen-fum` | `mps-gradle-scripts` | **BUILT & TESTED** (2/2) | `2026.1.0` |
+| 5 | **Editor2PDF** | `Editor2PDF` | `mps-gradle-scripts` | **BUILT & VERIFIED** | `2026.1.0` |
+| 6 | **CsBaseLanguage** | `CsBaseLanguage` | `mps-gradle-scripts` | **BUILT & TESTED** (10/10) | `2026.1.0` |
+| 7 | **CppBaseLanguage** | `CppBaseLanguage` | `mps-gradle-scripts` | **BUILT & TESTED** (10/10) | `2026.1.0` |
+| 8 | **mps-alfi** | `mps-alfi` | `CsBaseLanguage`, `CppBaseLanguage` | **BUILT & TESTED** (15/15) | `2026.1.0` |
+| 9 | **mps-alfi-samples** | `mps-alfi-samples` | `mps-alfi` | **BUILT & VERIFIED** | `2026.1.0` |
+| 10 | **mps-vimotest** | `mps-vimotest` | `vimotest-requirements-dsl`, `Editor2PDF`, `mps-alfi` | **BUILT & TESTED** (6/6) | `2026.1.0` |
+| 11 | **mps-vimotest-samples** (last) | `mps-vimotest-samples` | `mps-vimotest` | **BUILT & TESTED** (13/13) | `2026.1.0` |
 
 See [AGENTS.md](AGENTS.md) for detailed AI agent operational instructions.

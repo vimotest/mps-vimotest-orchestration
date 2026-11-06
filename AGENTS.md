@@ -89,7 +89,7 @@ Commit the changes in the submodule repository, create the release tag, and push
 cd <repo-id>
 git add -A
 git commit -m "Migrate to MPS 2026.1"
-git tag -a v2026.1.0 -m "Release 2026.1.0"
+git tag -a 2026.1.0 -m "Release 2026.1.0"
 # git push && git push --tags
 cd ..
 git add <repo-id>
