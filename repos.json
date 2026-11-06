@@ -1,0 +1,129 @@
+{
+  "targetMpsVersion": "2026.1",
+  "targetIdeaSinceBuild": "261",
+  "targetIdeaUntilBuild": "261.*",
+  "targetJbrVersion": "25.0.3-b329.124",
+  "repos": [
+    {
+      "order": 1,
+      "id": "mps-gradle-scripts",
+      "name": "MPS Gradle Scripts",
+      "path": "mps-gradle-scripts",
+      "url": "https://github.com/vimotest/mps-gradle-scripts.git",
+      "sshUrl": "git@github.com:vimotest/mps-gradle-scripts.git",
+      "type": "tooling",
+      "dependencies": [],
+      "description": "Foundation Gradle scripts (download-mps, run-mps-ant, init-gradle-scripts) used by all other repos"
+    },
+    {
+      "order": 2,
+      "id": "mps-gradle-setup-sample",
+      "name": "Gradle Setup Sample",
+      "path": "mps-gradle-setup-sample",
+      "url": "https://github.com/Fumapps/mps-gradle-setup-sample.git",
+      "sshUrl": "git@github.com:Fumapps/mps-gradle-setup-sample.git",
+      "type": "sample",
+      "dependencies": ["mps-gradle-scripts"],
+      "description": "Sample project demonstrating MPS gradle integration and verification"
+    },
+    {
+      "order": 3,
+      "id": "vimotest-requirements-dsl",
+      "name": "MPS Requirements DSL",
+      "path": "vimotest-requirements-dsl",
+      "url": "https://github.com/vimotest/vimotest-requirements-dsl.git",
+      "sshUrl": "git@github.com:vimotest/vimotest-requirements-dsl.git",
+      "type": "language",
+      "dependencies": ["mps-gradle-scripts"],
+      "description": "Requirements domain-specific language for ViMoTest"
+    },
+    {
+      "order": 4,
+      "id": "textGenGen-fum",
+      "name": "TextGenGen Fum",
+      "path": "textGenGen-fum",
+      "url": "https://github.com/Fumapps/textGenGen-fum.git",
+      "sshUrl": "git@github.com:Fumapps/textGenGen-fum.git",
+      "type": "tooling",
+      "dependencies": ["mps-gradle-scripts"],
+      "description": "TextGen generation extension"
+    },
+    {
+      "order": 5,
+      "id": "Editor2PDF",
+      "name": "Editor2PDF",
+      "path": "Editor2PDF",
+      "url": "https://github.com/Fumapps/Editor2PDF.git",
+      "sshUrl": "git@github.com:Fumapps/Editor2PDF.git",
+      "type": "utility",
+      "dependencies": ["mps-gradle-scripts"],
+      "description": "MPS editor PDF export plugin"
+    },
+    {
+      "order": 6,
+      "id": "CsBaseLanguage",
+      "name": "CsBaseLanguage",
+      "path": "CsBaseLanguage",
+      "url": "https://github.com/Fumapps/CsBaseLanguage.git",
+      "sshUrl": "git@github.com:Fumapps/CsBaseLanguage.git",
+      "type": "language",
+      "dependencies": ["mps-gradle-scripts"],
+      "description": "C# BaseLanguage extension for MPS"
+    },
+    {
+      "order": 7,
+      "id": "CppBaseLanguage",
+      "name": "CppBaseLanguage",
+      "path": "CppBaseLanguage",
+      "url": "https://github.com/Fumapps/CppBaseLanguage.git",
+      "sshUrl": "git@github.com:Fumapps/CppBaseLanguage.git",
+      "type": "language",
+      "dependencies": ["mps-gradle-scripts"],
+      "description": "C++ BaseLanguage extension for MPS"
+    },
+    {
+      "order": 8,
+      "id": "mps-alfi",
+      "name": "mps-alfi",
+      "path": "mps-alfi",
+      "url": "https://github.com/Fumapps/mps-alfi-rework.git",
+      "sshUrl": "git@github.com:Fumapps/mps-alfi-rework.git",
+      "type": "language",
+      "dependencies": ["mps-gradle-scripts", "CsBaseLanguage", "CppBaseLanguage"],
+      "description": "Action Language for Foundational UML (ALF) implementation in MPS"
+    },
+    {
+      "order": 9,
+      "id": "mps-alfi-samples",
+      "name": "mps-alfi-samples",
+      "path": "mps-alfi-samples",
+      "url": "https://github.com/vimotest/mps-alfi-samples.git",
+      "sshUrl": "git@github.com:vimotest/mps-alfi-samples.git",
+      "type": "sample",
+      "dependencies": ["mps-alfi"],
+      "description": "Sample projects demonstrating mps-alfi"
+    },
+    {
+      "order": 10,
+      "id": "mps-vimotest",
+      "name": "mps-vimotest",
+      "path": "mps-vimotest",
+      "url": "https://github.com/vimotest/mps-vimotest.git",
+      "sshUrl": "git@github.com:vimotest/mps-vimotest.git",
+      "type": "language",
+      "dependencies": ["mps-gradle-scripts", "vimotest-requirements-dsl", "Editor2PDF", "mps-alfi"],
+      "description": "Core ViMoTest MPS framework and test language"
+    },
+    {
+      "order": 11,
+      "id": "mps-vimotest-samples",
+      "name": "mps-vimotest-samples",
+      "path": "mps-vimotest-samples",
+      "url": "https://github.com/vimotest/mps-vimotest-samples.git",
+      "sshUrl": "git@github.com:vimotest/mps-vimotest-samples.git",
+      "type": "sample",
+      "dependencies": ["mps-vimotest"],
+      "description": "End-to-end samples and validation models for ViMoTest"
+    }
+  ]
+}
