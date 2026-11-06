@@ -303,6 +303,25 @@ def cmd_migrate(args: argparse.Namespace) -> None:
     print(f"  4. Run: ./orchestrate build {repo['id']}     (validates build)")
     print(f"  5. Run: ./orchestrate test {repo['id']}      (runs MPS tests)")
 
+def get_local_plugin_args(config: Dict[str, Any]) -> List[str]:
+    args: List[str] = []
+    for r in config["repos"]:
+        prop = r.get("pluginProperty")
+        artifact_rel = r.get("artifactZip")
+        if prop and artifact_rel:
+            artifact_path = ROOT_DIR / r["path"] / artifact_rel
+            if artifact_path.exists():
+                uri = artifact_path.resolve().as_uri()
+                args.append(f"-P{prop}={uri}")
+    return args
+
+def run_gradle(repo: Dict[str, Any], config: Dict[str, Any], task: str) -> None:
+    repo_path = ROOT_DIR / repo["path"]
+    plugin_args = get_local_plugin_args(config)
+    cmd = ["./gradlew", task] + plugin_args
+    print(f"Running '{' '.join(cmd)}' in {repo_path}...")
+    subprocess.run(cmd, cwd=repo_path, check=True)
+
 def cmd_prepare(args: argparse.Namespace) -> None:
     config = load_config()
     repo = get_repo_by_id(config, args.repo)
@@ -310,9 +329,7 @@ def cmd_prepare(args: argparse.Namespace) -> None:
         print(f"Error: Unknown repo '{args.repo}'", file=sys.stderr)
         sys.exit(1)
 
-    repo_path = ROOT_DIR / repo["path"]
-    print(f"Running './gradlew prepareMps' in {repo_path}...")
-    subprocess.run(["./gradlew", "prepareMps"], cwd=repo_path, check=True)
+    run_gradle(repo, config, "prepareMps")
 
 def cmd_build(args: argparse.Namespace) -> None:
     config = load_config()
@@ -321,9 +338,7 @@ def cmd_build(args: argparse.Namespace) -> None:
         print(f"Error: Unknown repo '{args.repo}'", file=sys.stderr)
         sys.exit(1)
 
-    repo_path = ROOT_DIR / repo["path"]
-    print(f"Running './gradlew mpsBuild' in {repo_path}...")
-    subprocess.run(["./gradlew", "mpsBuild"], cwd=repo_path, check=True)
+    run_gradle(repo, config, "mpsBuild")
 
 def cmd_test(args: argparse.Namespace) -> None:
     config = load_config()
@@ -332,9 +347,7 @@ def cmd_test(args: argparse.Namespace) -> None:
         print(f"Error: Unknown repo '{args.repo}'", file=sys.stderr)
         sys.exit(1)
 
-    repo_path = ROOT_DIR / repo["path"]
-    print(f"Running './gradlew mpsTest' in {repo_path}...")
-    subprocess.run(["./gradlew", "mpsTest"], cwd=repo_path, check=True)
+    run_gradle(repo, config, "mpsTest")
 
 def cmd_open(args: argparse.Namespace) -> None:
     config = load_config()
@@ -343,9 +356,8 @@ def cmd_open(args: argparse.Namespace) -> None:
         print(f"Error: Unknown repo '{args.repo}'", file=sys.stderr)
         sys.exit(1)
 
-    repo_path = ROOT_DIR / repo["path"]
     print(f"Opening project '{repo['id']}' in MPS 2026.1...")
-    subprocess.run(["./gradlew", "openProjectInMps"], cwd=repo_path, check=True)
+    run_gradle(repo, config, "openProjectInMps")
 
 def cmd_mcp_config(args: argparse.Namespace) -> None:
     repo_id = args.repo or "mps-gradle-scripts"

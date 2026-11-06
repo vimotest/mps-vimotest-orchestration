@@ -46,6 +46,8 @@
       "sshUrl": "git@github.com:Fumapps/textGenGen.git",
       "type": "tooling",
       "dependencies": ["mps-gradle-scripts"],
+      "pluginProperty": "textGenGenPluginUrl",
+      "artifactZip": "build/artifacts/TextGenGen/TextGenGen.zip",
       "description": "TextGen generation extension"
     },
     {
@@ -67,7 +69,9 @@
       "url": "https://github.com/Fumapps/CsBaseLanguage.git",
       "sshUrl": "git@github.com:Fumapps/CsBaseLanguage.git",
       "type": "language",
-      "dependencies": ["mps-gradle-scripts"],
+      "dependencies": ["mps-gradle-scripts", "textGenGen-fum"],
+      "pluginProperty": "csBaseLanguagePluginUrl",
+      "artifactZip": "build/artifacts/CsBaseLanguage/CsBaseLanguage.zip",
       "description": "C# BaseLanguage extension for MPS"
     },
     {
@@ -78,7 +82,9 @@
       "url": "https://github.com/Fumapps/CppBaseLanguage.git",
       "sshUrl": "git@github.com:Fumapps/CppBaseLanguage.git",
       "type": "language",
-      "dependencies": ["mps-gradle-scripts"],
+      "dependencies": ["mps-gradle-scripts", "textGenGen-fum"],
+      "pluginProperty": "cppBaseLanguagePluginUrl",
+      "artifactZip": "build/artifacts/CppBaseLanguage/CppBaseLanguage.zip",
       "description": "C++ BaseLanguage extension for MPS"
     },
     {
@@ -89,7 +95,9 @@
       "url": "https://github.com/Fumapps/mps-alfi-rework.git",
       "sshUrl": "git@github.com:Fumapps/mps-alfi-rework.git",
       "type": "language",
-      "dependencies": ["mps-gradle-scripts", "CsBaseLanguage", "CppBaseLanguage"],
+      "dependencies": ["mps-gradle-scripts", "textGenGen-fum", "CsBaseLanguage", "CppBaseLanguage"],
+      "pluginProperty": "alfiPluginUrl",
+      "artifactZip": "build/artifacts/alfi-build/alfi.zip",
       "description": "Action Language for Foundational UML (ALF) implementation in MPS"
     },
     {
@@ -100,7 +108,7 @@
       "url": "https://github.com/vimotest/mps-alfi-samples.git",
       "sshUrl": "git@github.com:vimotest/mps-alfi-samples.git",
       "type": "sample",
-      "dependencies": ["mps-alfi"],
+      "dependencies": ["mps-alfi", "CsBaseLanguage", "CppBaseLanguage"],
       "description": "Sample projects demonstrating mps-alfi"
     },
     {
@@ -111,7 +119,9 @@
       "url": "https://github.com/vimotest/mps-vimotest.git",
       "sshUrl": "git@github.com:vimotest/mps-vimotest.git",
       "type": "language",
-      "dependencies": ["mps-gradle-scripts", "vimotest-requirements-dsl", "Editor2PDF", "mps-alfi"],
+      "dependencies": ["mps-gradle-scripts", "vimotest-requirements-dsl", "Editor2PDF", "mps-alfi", "CsBaseLanguage", "CppBaseLanguage"],
+      "pluginProperty": "vimotestPluginUrl",
+      "artifactZip": "build/artifacts/mps-vimotest/mps-vimotest.zip",
       "description": "Core ViMoTest MPS framework and test language"
     },
     {
@@ -122,7 +132,7 @@
       "url": "https://github.com/vimotest/mps-vimotest-samples.git",
       "sshUrl": "git@github.com:vimotest/mps-vimotest-samples.git",
       "type": "sample",
-      "dependencies": ["mps-vimotest"],
+      "dependencies": ["mps-vimotest", "mps-alfi", "CsBaseLanguage", "CppBaseLanguage"],
       "description": "End-to-end samples and validation models for ViMoTest"
     }
   ]
