@@ -10,3 +10,6 @@
 [submodule "textGenGen-fum"]
 	path = textGenGen-fum
 	url = https://github.com/Fumapps/textGenGen.git
+[submodule "Editor2PDF"]
+	path = Editor2PDF
+	url = https://github.com/Fumapps/Editor2PDF.git
