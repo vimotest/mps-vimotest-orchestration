@@ -22,3 +22,6 @@
 [submodule "mps-alfi"]
 	path = mps-alfi
 	url = https://github.com/Fumapps/mps-alfi-rework.git
+[submodule "mps-alfi-samples"]
+	path = mps-alfi-samples
+	url = https://github.com/vimotest/mps-alfi-samples.git
