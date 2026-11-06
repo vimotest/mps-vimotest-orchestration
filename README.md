@@ -89,4 +89,14 @@ The tracer bullet proves that migrating the foundation to MPS 2026.1 is technica
 | 10 | **mps-vimotest** | `mps-vimotest` | `vimotest-requirements-dsl`, `Editor2PDF`, `mps-alfi` | **BUILT & TESTED** (6/6) | `2026.1.0` |
 | 11 | **mps-vimotest-samples** (last) | `mps-vimotest-samples` | `mps-vimotest` | **BUILT & TESTED** (13/13) | `2026.1.0` |
 
-See [AGENTS.md](AGENTS.md) for detailed AI agent operational instructions.
+---
+
+## Documentation
+
+Detailed technical documentation is available in the [`docs/`](docs/) directory:
+
+- **[Architecture & Hybrid Layer Design](docs/ARCHITECTURE.md)**: Decentralization rationale, dependency graph, and local sibling resolution.
+- **[Migration Playbook](docs/MIGRATION_PLAYBOOK.md)**: Step-by-step procedure for migrating repositories to target MPS versions.
+- **[Model Context Protocol (MCP) Integration](docs/MCP_AGENT_INTEGRATION.md)**: Connecting AI coding agents to the MPS 2026.1 Projectional Agent Toolkit.
+- **[Troubleshooting & Known Pitfalls](docs/TROUBLESHOOTING.md)**: Compilation classpath fixes, Itemis extensions, reduction rules, and conventions.
+- **[AI Agent Guide](AGENTS.md)**: Operational guide for agent-driven autonomous migration.
