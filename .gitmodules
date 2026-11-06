@@ -1,0 +1,3 @@
+[submodule "mps-gradle-scripts"]
+	path = mps-gradle-scripts
+	url = https://github.com/vimotest/mps-gradle-scripts.git
