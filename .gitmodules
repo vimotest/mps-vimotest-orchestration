@@ -4,3 +4,6 @@
 [submodule "mps-gradle-setup-sample"]
 	path = mps-gradle-setup-sample
 	url = https://github.com/Fumapps/mps-gradle-setup-sample.git
+[submodule "vimotest-requirements-dsl"]
+	path = vimotest-requirements-dsl
+	url = https://github.com/vimotest/vimotest-requirements-dsl.git
