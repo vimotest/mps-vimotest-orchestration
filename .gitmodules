@@ -16,3 +16,6 @@
 [submodule "CsBaseLanguage"]
 	path = CsBaseLanguage
 	url = https://github.com/Fumapps/CsBaseLanguage.git
+[submodule "CppBaseLanguage"]
+	path = CppBaseLanguage
+	url = https://github.com/Fumapps/CppBaseLanguage.git
