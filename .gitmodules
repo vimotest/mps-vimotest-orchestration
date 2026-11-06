@@ -13,3 +13,6 @@
 [submodule "Editor2PDF"]
 	path = Editor2PDF
 	url = https://github.com/Fumapps/Editor2PDF.git
+[submodule "CsBaseLanguage"]
+	path = CsBaseLanguage
+	url = https://github.com/Fumapps/CsBaseLanguage.git
