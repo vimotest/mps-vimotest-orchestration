@@ -303,9 +303,16 @@ def cmd_migrate(args: argparse.Namespace) -> None:
     print(f"  4. Run: ./orchestrate build {repo['id']}     (validates build)")
     print(f"  5. Run: ./orchestrate test {repo['id']}      (runs MPS tests)")
 
-def get_local_plugin_args(config: Dict[str, Any]) -> List[str]:
+def get_local_plugin_args(config: Dict[str, Any], mode: str = "local", local_only: Optional[List[str]] = None) -> List[str]:
+    if mode == "remote" and not local_only:
+        return []
+
     args: List[str] = []
     for r in config["repos"]:
+        if local_only is not None and r["id"] not in local_only:
+            continue
+        if mode == "remote" and local_only is None:
+            continue
         prop = r.get("pluginProperty")
         artifact_rel = r.get("artifactZip")
         if prop and artifact_rel:
@@ -315,11 +322,29 @@ def get_local_plugin_args(config: Dict[str, Any]) -> List[str]:
                 args.append(f"-P{prop}={uri}")
     return args
 
-def run_gradle(repo: Dict[str, Any], config: Dict[str, Any], task: str) -> None:
+def run_gradle(repo: Dict[str, Any], config: Dict[str, Any], task: str, mode: str = "local", local_only: Optional[List[str]] = None, extra_args: Optional[List[str]] = None) -> None:
     repo_path = ROOT_DIR / repo["path"]
-    plugin_args = get_local_plugin_args(config)
+
+    # When --mode remote is used on prepare, delete download plugins and bundle dependencies
+    # so Gradle re-downloads them from remote GitHub release URLs instead of reusing local caches.
+    if task == "prepareMps" and mode == "remote":
+        plugins_cache = repo_path / "build" / "download" / "plugins"
+        bundle_deps = repo_path / "build" / "mps-bundle" / "dependencies"
+        if plugins_cache.exists():
+            print(f"[{repo['id']}] Clearing {plugins_cache} for remote dependency fetch...")
+            shutil.rmtree(plugins_cache, ignore_errors=True)
+        if bundle_deps.exists():
+            print(f"[{repo['id']}] Clearing {bundle_deps} for remote dependency fetch...")
+            shutil.rmtree(bundle_deps, ignore_errors=True)
+
+    plugin_args = get_local_plugin_args(config, mode=mode, local_only=local_only)
     cmd = ["./gradlew", task] + plugin_args
-    print(f"Running '{' '.join(cmd)}' in {repo_path}...")
+    if task == "prepareMps" and mode == "remote":
+        cmd.append("--rerun-tasks")
+    if extra_args:
+        cmd.extend(extra_args)
+
+    print(f"Running '{' '.join(cmd)}' in {repo_path} (mode: {mode})...")
     subprocess.run(cmd, cwd=repo_path, check=True)
 
 def cmd_prepare(args: argparse.Namespace) -> None:
@@ -329,7 +354,7 @@ def cmd_prepare(args: argparse.Namespace) -> None:
         print(f"Error: Unknown repo '{args.repo}'", file=sys.stderr)
         sys.exit(1)
 
-    run_gradle(repo, config, "prepareMps")
+    run_gradle(repo, config, "prepareMps", mode=args.mode, local_only=args.local_only)
 
 def cmd_build(args: argparse.Namespace) -> None:
     config = load_config()
@@ -338,7 +363,7 @@ def cmd_build(args: argparse.Namespace) -> None:
         print(f"Error: Unknown repo '{args.repo}'", file=sys.stderr)
         sys.exit(1)
 
-    run_gradle(repo, config, "mpsBuild")
+    run_gradle(repo, config, "mpsBuild", mode=args.mode, local_only=args.local_only)
 
 def cmd_test(args: argparse.Namespace) -> None:
     config = load_config()
@@ -347,7 +372,7 @@ def cmd_test(args: argparse.Namespace) -> None:
         print(f"Error: Unknown repo '{args.repo}'", file=sys.stderr)
         sys.exit(1)
 
-    run_gradle(repo, config, "mpsTest")
+    run_gradle(repo, config, "mpsTest", mode=args.mode, local_only=args.local_only)
 
 def cmd_open(args: argparse.Namespace) -> None:
     config = load_config()
@@ -356,8 +381,8 @@ def cmd_open(args: argparse.Namespace) -> None:
         print(f"Error: Unknown repo '{args.repo}'", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Opening project '{repo['id']}' in MPS 2026.1...")
-    run_gradle(repo, config, "openProjectInMps")
+    print(f"Opening project '{repo['id']}' in MPS 2026.1 (mode: {args.mode})...")
+    run_gradle(repo, config, "openProjectInMps", mode=args.mode, local_only=args.local_only)
 
 def cmd_mcp_config(args: argparse.Namespace) -> None:
     repo_id = args.repo or "mps-gradle-scripts"
@@ -417,21 +442,29 @@ def main() -> None:
     p_mig = subparsers.add_parser("migrate", help="Run automated migration steps for a repo")
     p_mig.add_argument("repo", help="Target repository ID")
 
+    def add_mode_arguments(p: argparse.ArgumentParser) -> None:
+        p.add_argument("--mode", choices=["local", "remote"], default="local", help="Dependency resolution mode (default: local)")
+        p.add_argument("--local-only", nargs="*", default=None, help="Repositories to keep local even in remote mode or selective local mode")
+
     # prepare
     p_prep = subparsers.add_parser("prepare", help="Download and prepare MPS bundle")
     p_prep.add_argument("repo", help="Target repository ID")
+    add_mode_arguments(p_prep)
 
     # build
     p_build = subparsers.add_parser("build", help="Run MPS ant build")
     p_build.add_argument("repo", help="Target repository ID")
+    add_mode_arguments(p_build)
 
     # test
     p_test = subparsers.add_parser("test", help="Run MPS ant tests")
     p_test.add_argument("repo", help="Target repository ID")
+    add_mode_arguments(p_test)
 
     # open
     p_open = subparsers.add_parser("open", help="Open project in MPS")
     p_open.add_argument("repo", help="Target repository ID")
+    add_mode_arguments(p_open)
 
     # mcp-config
     p_mcp = subparsers.add_parser("mcp-config", help="Show MCP configuration for MPS 2026.1")
