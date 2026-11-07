@@ -1,0 +1,27 @@
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # weekly: catches broken/changed upstream releases
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true # also verifies every pinned submodule SHA is fetchable
+      - name: Script syntax
+        run: python3 -m py_compile scripts/orchestrate.py scripts/check.py
+      - name: Orchestrate smoke test
+        run: ./orchestrate --help > /dev/null
+      - name: Consistency checks
+        run: python3 scripts/check.py --remote
