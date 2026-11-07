@@ -174,4 +174,85 @@ gh release edit 2026.1.0 -R <owner>/<repo> \
   --notes "Release 2026.1.0 for JetBrains MPS 2026.1."
 ```
 
+---
+
+## 9. macOS Launcher VM Options Lookup: "Used language ... is not deployed"
+
+### Symptom
+When opening an MPS project on macOS via `./gradlew openProjectInMps` or `./orchestrate open`, the IDE launches, but models report errors:
+```
+ERROR: Used language alfi is not deployed (and 3 more issues)
+```
+Even though the dependency plugins exist inside `build/mps-bundle/dependencies/`.
+
+### Root Cause
+MPS 2026.1 on macOS uses the native Rust launcher executable (`build/mps-bundle/Contents/MacOS/mps`). When `build/mps-bundle/Contents` is a symlink into the shared bundle `.mps-shared/2026.1/Contents`, the native launcher resolves the realpath of the executable and looks for `bin/mps.vmoptions` inside `.mps-shared/` rather than the repository's isolated `build/mps-bundle/Contents/bin/mps64.vmoptions`.
+
+Consequently, the critical JVM property `-Didea.plugins.path=.../dependencies` configured in the repo's `mps64.vmoptions` is ignored by the launcher.
+
+### Solution
+Explicitly pass the `MPS_VM_OPTIONS` environment variable pointing to the repository's local `mps64.vmoptions`:
+1. In `gradle/run-mps-ant.gradle`:
+   ```groovy
+   if (Os.isFamily(Os.FAMILY_MAC)) {
+       environment "MPS_VM_OPTIONS", "$projectDir/build/mps-bundle/Contents/bin/mps64.vmoptions"
+       commandLine 'build/mps-bundle/Contents/MacOS/mps', projectDir
+   }
+   ```
+2. In `scripts/orchestrate.py` (`cmd_open` / `run_gradle`):
+   ```python
+   vmopt_path = repo_path / "build" / "mps-bundle" / bundle_subdir / "bin" / vmopt_file
+   if vmopt_path.exists():
+       env["MPS_VM_OPTIONS"] = str(vmopt_path.resolve())
+   ```
+
+---
+
+## 10. Missing Model Migration Delta: Migration Assistant Dialog in GUI
+
+### Symptom
+Opening a migrated project in the MPS IDE triggers the interactive "Migration Assistant" popup asking the user to manually execute migrations (e.g. `UpdateConceptMethodCall`), and `.mps/migration.xml` still lists `project.migrated.version` as `253` instead of `261`.
+
+### Root Cause
+Running `./gradlew mpsBuild` only runs code generation and compilation for existing models. It does **not** invoke the MPS model migration engine. Merely bumping `ext.mpsVersion = "2026.1"` in `build.gradle` and compiling does not migrate the underlying model AST or update the project version marker.
+
+### Solution
+Automate model migration completely headlessly using `jetbrains.mps.build.ant.MigrationTask` from `${mpsHome}/lib/ant/lib/ant-mps.jar`.
+Added task `mpsAntMigrate` to `run-mps-ant.gradle`:
+```groovy
+task mpsAntMigrate {
+    doLast {
+        // Generates dynamic Ant buildfile invoking <mps-migrate> with autoplugindiscovery="true"
+        // and runs it headlessly using Launcher
+    }
+}
+```
+Now `./orchestrate migrate <repo-id>` automatically triggers `mpsAntMigrate`, bumping `project.migrated.version` to `261` and applying all migration scripts without any human interaction.
+
+---
+
+## 11. Testbench Dynamic Index Pollution: `ModuleClassLoaderIsDisposedException`
+
+### Symptom
+Headless Ant test runs (`./gradlew mpsTest` / `mpsAntCheck`) intermittently fail with:
+```
+ModuleClassLoaderIsDisposedException: ClassLoader of the module '<module>' is disposed and not operable!
+```
+
+### Root Cause
+When tests run consecutively, cached IntelliJ indexes inside `build/system/index` persist between executions. During startup, background indexer threads trigger module reloads and invalidate classloaders while tests are executing.
+
+### Solution
+In `run-mps-ant.gradle`, ensure `mpsAntCheck` unconditionally wipes dirty runtime index caches before invoking Ant:
+```groovy
+task mpsAntCheck(type: Exec) {
+    doFirst {
+        file("$buildDir/system").deleteDir()
+        file("$buildDir/config").deleteDir()
+    }
+    // ...
+}
+```
+
+
 

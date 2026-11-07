@@ -27,44 +27,49 @@ Repositories must be migrated strictly in topological dependency order (1 to 11)
 ```
 *Clones or updates the submodule into the workspace if not already present.*
 
-### Step 2: Automated Preparation
+### Step 2: Automated Preparation & Headless Migration
 ```bash
-./orchestrate migrate <repo-id>
+./orchestrate migrate <repo-id> [--build] [--test]
 ```
-This automatically performs three actions:
+This is a **100% automated, zero-human-touch** command that executes:
 1. Syncs `download-mps.gradle`, `run-mps-ant.gradle`, and `init-gradle-scripts.gradle` from `mps-gradle-scripts`.
 2. Updates `ext.mpsVersion = "<target-version>"` in the repository's `build.gradle`.
 3. Upgrades `gradle-wrapper.properties` to Gradle 8.10.2+ (for Java 21 / 25 support).
+4. Provisions the shared MPS 2026.1 / JBR bundle from `.mps-shared/`.
+5. Prepares all upstream plugin dependencies in `build/mps-bundle/dependencies`.
+6. Executes the **headless model migration** via `mpsAntMigrate` (`jetbrains.mps.build.ant.MigrationTask`), which executes all migration scripts, updates concept usages, and updates `.mps/migration.xml` to `project.migrated.version = "261"`.
+7. Optionally compiles (`--build`) and executes automated tests (`--test`).
 
-### Step 3: Prepare the MPS Distribution Bundle
+### Step 3: Prepare the MPS Distribution Bundle (Standalone)
 ```bash
 ./orchestrate prepare <repo-id>
 ```
-Downloads and unpacks:
-- MPS distribution bundle into `build/mps-bundle/mps`.
+Downloads and unpacks (or symlinks via `.mps-shared`):
+- MPS distribution bundle into `build/mps-bundle/mps` (or `Contents` on macOS).
 - JBR distribution into `build/mps-bundle/jbr`.
 - All required plugins (from sibling builds or remote releases) into `build/mps-bundle/dependencies`.
 
-### Step 4: Run Model Migrations (Headless or MCP)
+### Step 4: Verification & Diagnostic Inspection (Headless by Default)
 
-#### Option A: Headless ANT Generation
+#### Option A: Fully Automated Headless Verification (Standard)
+No GUI is needed. Everything runs in the terminal or CI:
 ```bash
 ./orchestrate build <repo-id>
+./orchestrate test <repo-id>
 ```
-If the project's models are already compatible or trivial, running the ANT generator directly will update generated files.
 
-#### Option B: Interactive Migration via Model Context Protocol (MCP)
-For non-trivial migrations (language version bumps, deprecated concept migrations, structural repairs):
-1. Open the project in the target MPS version:
+#### Option B: Interactive Inspection via GUI / Model Context Protocol (MCP) (Optional Debugging Only)
+Only required if diagnosing new, unpublished languages or investigating visual editor layout:
+1. Open the project in MPS 2026.1:
    ```bash
    ./orchestrate open <repo-id>
    ```
+   *(Note: `MPS_VM_OPTIONS` is automatically exported so plugin dependencies are loaded cleanly without deployed language warnings).*
 2. In MPS, ensure MCP Server is enabled under **Settings -> Tools -> MCP Server** (default IDE port `63342`).
 3. Connect an AI agent using `@jetbrains/mcp-proxy`:
    ```bash
    ./orchestrate mcp-config <repo-id>
    ```
-4. Instruct the agent to run version migrations and fix AST discrepancies.
 
 ### Step 5: Check Build Script & IDEA Version Range
 Inspect the repository's MPS build script or generated `build.xml`:

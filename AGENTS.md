@@ -37,26 +37,29 @@ Migrations and releases must proceed strictly in dependency order:
 
 ## 3. Standard Migration & Release Workflow per Repository
 
-### Step 1: Initialize & Sync Scripts
+### Step 1: Automated Headless Migration, Build & Test
 ```bash
 ./orchestrate init <repo-id>
-./orchestrate migrate <repo-id>
+./orchestrate migrate <repo-id> --build --test
 ```
-Syncs `download-mps.gradle`, `run-mps-ant.gradle`, `init-gradle-scripts.gradle` from `mps-gradle-scripts`, sets `ext.mpsVersion = "2026.1"`, and upgrades Gradle wrapper to `8.10.2`.
+This single command automates the entire migration pipeline:
+1. Syncs `download-mps.gradle`, `run-mps-ant.gradle`, and `init-gradle-scripts.gradle` from `mps-gradle-scripts`.
+2. Updates `ext.mpsVersion = "2026.1"` in `build.gradle` and upgrades Gradle wrapper to `8.10.2`.
+3. Provisions the shared `.mps-shared/2026.1` bundle and unpacks dependencies into `build/mps-bundle/dependencies`.
+4. Executes headless model migration (`mpsAntMigrate` via `jetbrains.mps.build.ant.MigrationTask`), applying all version migration scripts and bumping `.mps/migration.xml` to `project.migrated.version = "261"`.
+5. Compiles (`mpsBuild`) and runs test suites (`mpsTest`) in a clean environment with isolated testbench caches.
 
-### Step 2: Prepare Bundle & Run Migrations
+### Step 2: Verification of Migration Markers
+Ensure `.mps/migration.xml` documents the migrated version:
 ```bash
-./orchestrate prepare <repo-id>
-./orchestrate open <repo-id>   # Optional: run migrations via MCP on port 63342
+grep "project.migrated.version" <repo-id>/.mps/migration.xml
+# Expected output: <entry key="project.migrated.version" value="261" />
 ```
-Verify `<idea-version since-build="261" until-build="261.*"></idea-version>` and `${artifacts.mps}/lib/*.jar` classpath in the build model / `build.xml`.
+*(Optional GUI inspection: `./orchestrate open <repo-id>` exports `MPS_VM_OPTIONS` automatically so plugins load without deployment errors).*
 
-### Step 3: Validate Locally (`--mode local` then `--mode remote`)
+### Step 3: Validate Standalone Resolution (`--mode remote`)
+Once upstream dependencies are released on GitHub, verify fallback resolution:
 ```bash
-./orchestrate build <repo-id>
-./orchestrate test <repo-id>
-
-# Once upstream dependencies are released on GitHub:
 ./orchestrate prepare <repo-id> --mode remote
 ./orchestrate build <repo-id> --mode remote
 ./orchestrate test <repo-id> --mode remote

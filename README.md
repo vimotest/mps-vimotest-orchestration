@@ -23,11 +23,10 @@ Each repository retains its own Git history, CI/CD workflows, and GitHub Release
 ./orchestrate init all
 ./orchestrate share-bundles
 
-# 4. Sync Gradle scripts & update ext.mpsVersion for a repo
-./orchestrate migrate <repo-id>
+# 4. Fully automated headless migration (scripts, bundle, models, build & tests)
+./orchestrate migrate <repo-id> --build --test
 
-# 5. Prepare, build, and test (Local Sibling Mode - default)
-./orchestrate prepare <repo-id>
+# 5. Build and test individually (Local Sibling Mode - default)
 ./orchestrate build <repo-id>
 ./orchestrate test <repo-id>
 
