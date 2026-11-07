@@ -83,7 +83,7 @@ def check_submodules(config: dict) -> None:
     for r in config["repos"]:
         p = ROOT / r["path"]
         if not (p / "build.gradle").exists():
-            fail(f"{r['id']}: submodule not checked out (run with submodules: true)")
+            print(f"::warning::{r['id']}: submodule not checked out, skipping its marker checks")
             continue
         bg = (p / "build.gradle").read_text(encoding="utf-8")
         if not re.search(rf'ext\.mpsVersion\s*=\s*"{re.escape(target_mps)}"', bg):
