@@ -267,7 +267,9 @@ def cmd_migrate(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     target_mps = config["targetMpsVersion"]
-    print(f"Migrating '{repo['id']}' to MPS {target_mps}...")
+    print(f"\n=======================================================")
+    print(f" Migrating '{repo['id']}' to MPS {target_mps}")
+    print(f"=======================================================\n")
 
     # Step 1: Sync gradle scripts from mps-gradle-scripts
     print("1. Synchronizing gradle scripts...")
@@ -288,20 +290,34 @@ def cmd_migrate(args: argparse.Namespace) -> None:
     else:
         print(f"[{repo['id']}] Warning: build.gradle not found.")
 
-    # Step 3: Check build script idea-version
-    print("3. Checking build script IDEA range...")
-    target_since = config.get("targetIdeaSinceBuild", "261")
-    target_until = config.get("targetIdeaUntilBuild", "261.*")
-    idea_tag = f'<idea-version since-build="{target_since}" until-build="{target_until}"></idea-version>'
-    print(f"   Target IDEA Range: {idea_tag}")
+    # Step 3: Provision shared MPS bundle
+    print("3. Provisioning shared MPS bundle...")
+    ensure_shared_mps_bundle(config)
+    provision_repo_mps_bundle(repo, config)
 
-    print("\nMigration preparation complete for " + repo["id"])
-    print(f"Next steps for agent/user:")
-    print(f"  1. Run: ./orchestrate prepare {repo['id']}   (downloads MPS {target_mps} bundle)")
-    print(f"  2. Run: ./orchestrate open {repo['id']}      (launches MPS to execute migrations & MCP)")
-    print(f"  3. Connect MCP client using: ./orchestrate mcp-config {repo['id']}")
-    print(f"  4. Run: ./orchestrate build {repo['id']}     (validates build)")
-    print(f"  5. Run: ./orchestrate test {repo['id']}      (runs MPS tests)")
+    # Step 4: Prepare dependencies
+    mode = getattr(args, "mode", "local")
+    local_only = getattr(args, "local_only", None)
+    print(f"4. Preparing MPS bundle and dependencies (mode: {mode})...")
+    run_gradle(repo, config, "prepareMps", mode=mode, local_only=local_only)
+
+    # Step 5: Run headless model migration if .mps exists
+    mps_dir = repo_path / ".mps"
+    if mps_dir.exists():
+        print("5. Running automated headless MPS model migration...")
+        run_gradle(repo, config, "mpsMigrate", mode=mode, local_only=local_only)
+    else:
+        print("5. No .mps directory found; skipping model migration.")
+
+    if getattr(args, "build", False):
+        print("6. Validating build...")
+        run_gradle(repo, config, "mpsBuild", mode=mode, local_only=local_only)
+
+    if getattr(args, "test", False):
+        print("7. Running tests...")
+        run_gradle(repo, config, "mpsTest", mode=mode, local_only=local_only)
+
+    print(f"\n[OK] Migration completed successfully for {repo['id']}.")
 
 def get_local_plugin_args(config: Dict[str, Any], mode: str = "local", local_only: Optional[List[str]] = None) -> List[str]:
     if mode == "remote" and not local_only:
@@ -408,14 +424,15 @@ def provision_repo_mps_bundle(repo: Dict[str, Any], config: Dict[str, Any]) -> N
         repo_bin.unlink()
     if not repo_bin.exists():
         shutil.copytree(shared_bundle / "bin", repo_bin, symlinks=True)
-        deps_abs = str(deps_dir.resolve())
-        for vmopt in repo_bin.glob("*.vmoptions"):
-            lines = [
-                line for line in vmopt.read_text(encoding="utf-8", errors="ignore").splitlines()
-                if not line.strip().startswith("-Didea.plugins.path=")
-            ]
-            lines.append(f"-Didea.plugins.path={deps_abs}")
-            vmopt.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    deps_abs = str(deps_dir.resolve())
+    for vmopt in repo_bin.glob("*.vmoptions"):
+        lines = [
+            line for line in vmopt.read_text(encoding="utf-8", errors="ignore").splitlines()
+            if not line.strip().startswith("-Didea.plugins.path=")
+        ]
+        lines.append(f"-Didea.plugins.path={deps_abs}")
+        vmopt.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     # On macOS, ensure build/mps-bundle/mps -> Contents symlink exists
     if sys.platform == "darwin":
@@ -475,8 +492,16 @@ def run_gradle(repo: Dict[str, Any], config: Dict[str, Any], task: str, mode: st
     if extra_args:
         cmd.extend(extra_args)
 
+    env = dict(os.environ)
+    if task == "openProjectInMps":
+        bundle_subdir = "Contents" if sys.platform == "darwin" else "mps"
+        vmopt_file = "mps64.vmoptions" if sys.platform != "win32" else "mps64.exe.vmoptions"
+        vmopt_path = repo_path / "build" / "mps-bundle" / bundle_subdir / "bin" / vmopt_file
+        if vmopt_path.exists():
+            env["MPS_VM_OPTIONS"] = str(vmopt_path.resolve())
+
     print(f"Running '{' '.join(cmd)}' in {repo_path} (mode: {mode})...")
-    subprocess.run(cmd, cwd=repo_path, check=True)
+    subprocess.run(cmd, cwd=repo_path, env=env, check=True)
 
 def cmd_prepare(args: argparse.Namespace) -> None:
     config = load_config()
@@ -584,13 +609,16 @@ def main() -> None:
     p_sync = subparsers.add_parser("sync-scripts", help="Synchronize gradle scripts from mps-gradle-scripts")
     p_sync.add_argument("repo", nargs="?", default="all", help="Target repository ID or 'all'")
 
-    # migrate
-    p_mig = subparsers.add_parser("migrate", help="Run automated migration steps for a repo")
-    p_mig.add_argument("repo", help="Target repository ID")
-
     def add_mode_arguments(p: argparse.ArgumentParser) -> None:
         p.add_argument("--mode", choices=["local", "remote"], default="local", help="Dependency resolution mode (default: local)")
         p.add_argument("--local-only", nargs="*", default=None, help="Repositories to keep local even in remote mode or selective local mode")
+
+    # migrate
+    p_mig = subparsers.add_parser("migrate", help="Run automated migration steps for a repo")
+    p_mig.add_argument("repo", help="Target repository ID")
+    add_mode_arguments(p_mig)
+    p_mig.add_argument("--build", action="store_true", help="Run build after migration")
+    p_mig.add_argument("--test", action="store_true", help="Run tests after migration")
 
     # prepare
     p_prep = subparsers.add_parser("prepare", help="Download and prepare MPS bundle")
