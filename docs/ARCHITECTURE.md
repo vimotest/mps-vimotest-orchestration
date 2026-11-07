@@ -102,10 +102,23 @@ Meanwhile, [`repos.json`](../repos.json) maps each provider repository's `plugin
 - **Clean decoupled repositories**: Individual repositories remain free of hardcoded relative paths (`../mps-alfi/build/artifacts/...`).
 - **Zero lag**: As soon as `mps-alfi` finishes `mpsBuild`, `./orchestrate prepare mps-vimotest` immediately passes `-PalfiPluginUrl=file://...` pointing to the newly built plugin.
 - **Full CI portability**: When a submodule is built standalone or on GitHub Actions without orchestrator properties, `findProperty(...)` returns `null` and automatically falls back to the published GitHub release URL.
+- **Dual-Mode Verification (`--mode local` vs `--mode remote`)**: During initial migration, `--mode local` (default) resolves sibling artifacts locally. Before or after publishing upstream GitHub Releases, `--mode remote` clears cached plugin downloads and runs `./gradlew` without `-P*PluginUrl` overrides to verify the exact decentralized release URLs that CI and external users consume.
 
 ---
 
-## 4. Shared Foundation: `mps-gradle-scripts`
+## 4. Shared MPS & JBR Bundle Deduplication (`.mps-shared/`)
+
+Extracting MPS 2026.1 and JBR 25 independently inside 11 submodules would consume ~2.1 GB per repository (~23+ GB total). Because `download-mps.gradle` guards its download and extraction tasks (`downloadMps`, `buildMpsZipBundle`, `extractJbrToMpsBundle`, `copyOsSpecificBinFiles`, `buildOsSpecificBundle`) with directory existence checks (`onlyIf { !file(...).exists() }`), the orchestration layer deduplicates the MPS installation transparently:
+
+1. **Canonical Base Bundle**: `./orchestrate` stores a single extracted MPS + JBR distribution at `.mps-shared/<mpsVersion>/Contents` (or `mps` on Linux/Windows).
+2. **Per-Submodule Lightweight Links**: During `./orchestrate prepare <repo>` or `./orchestrate share-bundles`, each submodule's `build/mps-bundle/Contents` is populated with symlinks to the heavy read-only directories (`lib`, `plugins`, `jbr`, `languages`, `MacOS`, `Resources`, etc.) in `.mps-shared`.
+3. **Isolated `bin/*.vmoptions` & `dependencies/`**: Each submodule receives its own lightweight copy of `bin/` (~1.1 MB) configured with `-Didea.plugins.path=<repo>/build/mps-bundle/dependencies`, and its own `dependencies/` folder where `downloadPlugins` unpacks that repository's specific plugins.
+
+This reduces disk usage across all 11 submodules from ~24 GB to ~2.2 GB total and makes `./orchestrate prepare` complete in seconds.
+
+---
+
+## 5. Shared Foundation: `mps-gradle-scripts`
 
 `mps-gradle-scripts` serves as the single source of truth for Gradle automation across all repos. It provides:
 1. [`download-mps.gradle`](../mps-gradle-scripts/gradle/download-mps.gradle):

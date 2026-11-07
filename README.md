@@ -1,102 +1,74 @@
 # ViMoTest MPS Migration Orchestration
 
-This repository orchestrates the single isolated JetBrains MPS repositories for the ViMoTest ecosystem into a **hybrid layer**. Submodules allow each repository to remain decentralized, while enabling AI agents to drive the migration step-by-step through the dependency chain to **MPS 2026.1** via the **Model Context Protocol (MCP)**.
+A **hybrid orchestration layer** for migrating the 11 decentralized JetBrains MPS repositories in the ViMoTest ecosystem to **MPS 2026.1** (JBR `25.0.3-b329.124`, Gradle `8.10.2`).
+
+Each repository retains its own Git history, CI/CD workflows, and GitHub Releases, while this orchestration workspace provides:
+1. **Strict Topological Ordering**: Submodules managed via [`repos.json`](repos.json).
+2. **Dual-Mode Dependency Resolution**: Seamless switching between local sibling artifacts (`--mode local`) and published GitHub Release assets (`--mode remote`).
+3. **Zero-Duplication Shared MPS Bundle**: A single `.mps-shared/2026.1` distribution symlinked across all submodules (~22 GB disk space saved).
+4. **Native MCP Agent Integration**: Direct integration with the MPS 2026.1 **Projectional Agent Toolkit** (`jetbrains.mps.agents.mcp.tools`).
 
 ---
 
-## Process
-
-For each repository in the chain:
-1. **Initialize submodule**: Clones the decentralized repo locally.
-2. **Synchronize Gradle scripts**: Pulls latest `download-mps.gradle`, `run-mps-ant.gradle`, and `init-gradle-scripts.gradle`.
-3. **Configure MPS target version**: Sets `ext.mpsVersion = "2026.1"` and updates plugin dependencies in `build.gradle`.
-4. **Prepare MPS distribution**: Downloads MPS 2026.1 and JBR 25 via `./gradlew prepareMps`.
-5. **Launch MPS & Run Migrations via MCP**:
-   - Opens MPS via `./gradlew openProjectInMps`.
-   - Connects AI agents to MPS embedded MCP server (`jetbrains.mps.agents.mcp.tools` / `com.intellij.mcpServer`).
-   - Executes pending migrations structurally without raw XML corruption.
-6. **Check Build Script**:
-   - Update version.
-   - Set IDEA build compatibility range:
-     ```xml
-     <idea-version since-build="261" until-build="261.*"></idea-version>
-     ```
-7. **Verify & Release**:
-   - Run `./gradlew mpsBuild` and `./gradlew mpsTest`.
-   - Commit, tag release, and push upstream.
-   - Update submodule pointer in this orchestration repo.
-   - Advance down the dependency chain to the next repository.
-
----
-
-## Orchestrator CLI (`./orchestrate`)
-
-The included `./orchestrate` CLI automates status tracking, script synchronization, and migration commands:
+## Quick Start (`./orchestrate`)
 
 ```bash
-# Check status across all 11 repositories
+# 1. Inspect status across all 11 repositories
 ./orchestrate status
 
-# Find the next repository ready for migration
+# 2. Identify the next repository ready for migration
 ./orchestrate next
 
-# Initialize a specific submodule (or 'all')
-./orchestrate init mps-gradle-setup-sample
+# 3. Initialize submodules and deduplicate MPS/JBR bundles
+./orchestrate init all
+./orchestrate share-bundles
 
-# Run automated migration prep (sync scripts + bump build.gradle)
-./orchestrate migrate mps-gradle-setup-sample
+# 4. Sync Gradle scripts & update ext.mpsVersion for a repo
+./orchestrate migrate <repo-id>
 
-# Download & bundle MPS 2026.1 for a repo
-./orchestrate prepare mps-gradle-setup-sample
+# 5. Prepare, build, and test (Local Sibling Mode - default)
+./orchestrate prepare <repo-id>
+./orchestrate build <repo-id>
+./orchestrate test <repo-id>
 
-# Open project in MPS 2026.1
-./orchestrate open mps-gradle-setup-sample
+# 6. Verify against published GitHub Releases (Remote CI Mode)
+./orchestrate prepare <repo-id> --mode remote
+./orchestrate build <repo-id> --mode remote
+./orchestrate test <repo-id> --mode remote
 
-# Display MCP server configuration for AI agents
-./orchestrate mcp-config
-
-# Validate MPS build and test suite
-./orchestrate build mps-gradle-setup-sample
-./orchestrate test mps-gradle-setup-sample
+# 7. Launch MPS 2026.1 GUI & inspect MCP configuration
+./orchestrate open <repo-id>
+./orchestrate mcp-config <repo-id>
 ```
 
 ---
 
-## Tracer Bullet: `mps-gradle-scripts` (Completed)
+## Repository Dependency Chain & Rollout Status (MPS 2026.1)
 
-The tracer bullet proves that migrating the foundation to MPS 2026.1 is technically viable:
-* **JBR 25 Mapping**: Added `"2026.1": "25.0.3-b329.124"` to `gradle/download-mps.gradle`.
-* **Verified JetBrains URLs**: Verified availability of MPS 2026.1 zip and JBR 25 tarball on JetBrains CDN.
-* **Gradle Wrapper**: Upgraded wrapper to `8.10.2` to support modern JDKs (JDK 21, 23, 25).
-* **Validation**: Executed `./gradlew tasks --group=mps-download` and `./gradlew listPlugins` successfully for MPS 2026.1.
-* **Committed**: Changes committed to `mps-gradle-scripts` submodule and tracked in this repo.
+Migrations and releases must proceed strictly in topological order (1 to 11):
 
----
-
-## Repos (Dependency Order: First to Last)
-
-| # | Repository | Submodule Path | Dependencies | Status (MPS 2026.1) | Tag |
-|---|------------|----------------|--------------|---------------------|-----|
-| 1 | **mps-gradle-scripts** (first) | `mps-gradle-scripts` | *None* | **MIGRATED & VERIFIED** | `2026.1.0` |
-| 2 | **Gradle Setup Sample** | `mps-gradle-setup-sample` | `mps-gradle-scripts` | **BUILT & TESTED** (1/1) | `2026.1.0` |
-| 3 | **mps-requirements-dsl** | `vimotest-requirements-dsl` | `mps-gradle-scripts` | **BUILT & VERIFIED** | `2026.1.0` |
-| 4 | **TextGenGen Fum** | `textGenGen-fum` | `mps-gradle-scripts` | **BUILT & TESTED** (2/2) | `2026.1.0` |
-| 5 | **Editor2PDF** | `Editor2PDF` | `mps-gradle-scripts` | **BUILT & VERIFIED** | `2026.1.0` |
-| 6 | **CsBaseLanguage** | `CsBaseLanguage` | `mps-gradle-scripts` | **BUILT & TESTED** (10/10) | `2026.1.0` |
-| 7 | **CppBaseLanguage** | `CppBaseLanguage` | `mps-gradle-scripts` | **BUILT & TESTED** (10/10) | `2026.1.0` |
-| 8 | **mps-alfi** | `mps-alfi` | `CsBaseLanguage`, `CppBaseLanguage` | **BUILT & TESTED** (15/15) | `2026.1.0` |
-| 9 | **mps-alfi-samples** | `mps-alfi-samples` | `mps-alfi` | **BUILT & VERIFIED** | `2026.1.0` |
-| 10 | **mps-vimotest** | `mps-vimotest` | `vimotest-requirements-dsl`, `Editor2PDF`, `mps-alfi` | **BUILT & TESTED** (6/6) | `2026.1.0` |
-| 11 | **mps-vimotest-samples** (last) | `mps-vimotest-samples` | `mps-vimotest` | **BUILT & TESTED** (13/13) | `2026.1.0` |
+| # | Repository | Type | Upstream Dependencies | Artifact / Plugin Property | MPS 2026.1 Release |
+|:-:|---|---|---|---|---|
+| 1 | [`mps-gradle-scripts`](mps-gradle-scripts) | Tooling | *None* | Root Gradle scripts | `2026.1.0` |
+| 2 | [`mps-gradle-setup-sample`](mps-gradle-setup-sample) | Sample | 1 | Validation sample (1/1 tests) | `2026.1.0` |
+| 3 | [`vimotest-requirements-dsl`](vimotest-requirements-dsl) | Language | 1 | Requirements DSL | `2026.1.0` |
+| 4 | [`textGenGen-fum`](textGenGen-fum) | Tooling | 1 | `TextGenGen.zip` (`textGenGenPluginUrl`) | `2026.1.0` |
+| 5 | [`Editor2PDF`](Editor2PDF) | Utility | 1 | Editor PDF export plugin | `2026.1.0` |
+| 6 | [`CsBaseLanguage`](CsBaseLanguage) | Language | 1, 4 | `CsBaseLanguage.zip` (`csBaseLanguagePluginUrl`) | `2026.1.0` |
+| 7 | [`CppBaseLanguage`](CppBaseLanguage) | Language | 1, 4 | `CppBaseLanguage.zip` (`cppBaseLanguagePluginUrl`) | `2026.1.0` |
+| 8 | [`mps-alfi`](mps-alfi) | Language | 1, 4, 6, 7 | `alfi.zip` (`alfiPluginUrl`) | `2026.1.0` |
+| 9 | [`mps-alfi-samples`](mps-alfi-samples) | Sample | 8, 6, 7 | ALFI end-to-end samples | `2026.1.0` |
+| 10 | [`mps-vimotest`](mps-vimotest) | Language | 1, 3, 5, 8, 6, 7 | `mps-vimotest.zip` (`vimotestPluginUrl`) | `2026.1.0` |
+| 11 | [`mps-vimotest-samples`](mps-vimotest-samples) | Sample | 10, 8, 6, 7 | ViMoTest end-to-end samples (13/13 tests) | `2026.1.0` |
 
 ---
 
 ## Documentation
 
-Detailed technical documentation is available in the [`docs/`](docs/) directory:
+Detailed guides are located in [`docs/`](docs/):
 
-- **[Architecture & Hybrid Layer Design](docs/ARCHITECTURE.md)**: Decentralization rationale, dependency graph, and local sibling resolution.
-- **[Migration Playbook](docs/MIGRATION_PLAYBOOK.md)**: Step-by-step procedure for migrating repositories to target MPS versions.
-- **[Model Context Protocol (MCP) Integration](docs/MCP_AGENT_INTEGRATION.md)**: Connecting AI coding agents to the MPS 2026.1 Projectional Agent Toolkit.
-- **[Troubleshooting & Known Pitfalls](docs/TROUBLESHOOTING.md)**: Compilation classpath fixes, Itemis extensions, reduction rules, and conventions.
-- **[AI Agent Guide](AGENTS.md)**: Operational guide for agent-driven autonomous migration.
+- **[Architecture & Hybrid Layer Design](docs/ARCHITECTURE.md)**: Decentralized repo design, dual-mode dependency resolution (`local` vs `remote`), and `.mps-shared` bundle deduplication.
+- **[Migration Playbook](docs/MIGRATION_PLAYBOOK.md)**: End-to-end checklist for migrating, testing, tagging, and publishing clean GitHub Releases.
+- **[Model Context Protocol (MCP) Integration](docs/MCP_AGENT_INTEGRATION.md)**: Connecting AI coding agents to the live MPS 2026.1 instance on port `63342`.
+- **[Troubleshooting & Known Pitfalls](docs/TROUBLESHOOTING.md)**: Verified fixes for IntelliJ 261 modular JAR classpaths, JDK 21 vs JDK 25 bytecode execution in `compitest`, IDEA version ranges, and tag conventions.
+- **[AI Agent Operational Guide](AGENTS.md)**: Concise instructions and rules for autonomous coding agents.

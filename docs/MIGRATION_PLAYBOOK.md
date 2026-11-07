@@ -77,28 +77,43 @@ Inspect the repository's MPS build script or generated `build.xml`:
    <idea-version since-build="261" until-build="261.*"></idea-version>
    ```
 
-### Step 6: Validate Build & Tests
+### Step 6: Validate Build & Tests (Local & Remote Modes)
+First validate using local sibling artifacts (`--mode local`, default):
 ```bash
 ./orchestrate build <repo-id>
 ./orchestrate test <repo-id>
 ```
-Ensure all tests execute and pass without errors.
+Once upstream dependencies are published to GitHub Releases, verify decentralized resolution in `--mode remote`:
+```bash
+./orchestrate prepare <repo-id> --mode remote
+./orchestrate build <repo-id> --mode remote
+./orchestrate test <repo-id> --mode remote
+```
 
-### Step 7: Commit, Tag & Update Submodule Pointer
+### Step 7: Commit, Tag, Publish Clean GitHub Release & Update Submodule Pointer
 
 > [!IMPORTANT]
-> **Tag Naming Convention**:
-> Always use bare semantic versions (e.g. `2026.1.0`).
-> **Never** use a `v` prefix (`v2026.1.0` is prohibited across all repositories).
+> **Release Conventions**:
+> 1. **Bare Semantic Tags Only**: Always use `2026.1.0` (**never** `v2026.1.0`).
+> 2. **Dual Remote for `mps-alfi`**: Push `mps-alfi` to both `origin` (`Fumapps/mps-alfi-rework`) and `vimotest` (`vimotest/mps-alfi`) so downstream URLs pointing to `vimotest/mps-alfi` resolve.
+> 3. **Clean Release Notes**: The CI `github-actions-release.yaml` workflow creates a draft prerelease containing `TODO: write changes...` placeholders. Always publish the release and overwrite the body with clean notes.
 
 Execute inside the submodule:
 ```bash
 cd <repo-id>
 git add -A
-git commit -m "Migrate build configuration and classpath to MPS 2026.1"
+git commit -m "Migrate to MPS 2026.1"
 git tag -a 2026.1.0 -m "Release 2026.1.0"
-# git push origin main && git push origin 2026.1.0
+git push origin HEAD && git push origin 2026.1.0
 cd ..
+```
+
+After the GitHub Actions `Release Build` workflow completes, publish the release and clean up its release notes:
+```bash
+gh release edit 2026.1.0 -R <owner>/<repo> \
+  --draft=false --prerelease=false --latest \
+  --title "Release 2026.1.0" \
+  --notes "Release 2026.1.0 for JetBrains MPS 2026.1."
 ```
 
 Then update the submodule pointer in the orchestration repository:

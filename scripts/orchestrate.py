@@ -311,8 +311,6 @@ def get_local_plugin_args(config: Dict[str, Any], mode: str = "local", local_onl
     for r in config["repos"]:
         if local_only is not None and r["id"] not in local_only:
             continue
-        if mode == "remote" and local_only is None:
-            continue
         prop = r.get("pluginProperty")
         artifact_rel = r.get("artifactZip")
         if prop and artifact_rel:
@@ -322,8 +320,143 @@ def get_local_plugin_args(config: Dict[str, Any], mode: str = "local", local_onl
                 args.append(f"-P{prop}={uri}")
     return args
 
+def ensure_shared_mps_bundle(config: Dict[str, Any]) -> Path:
+    """
+    Ensures a single canonical MPS + JBR distribution is extracted under
+    <ROOT_DIR>/.mps-shared/<mpsVersion>/Contents (or mps on Linux/Windows),
+    reusing an existing extracted bundle if present, or preparing via mps-gradle-scripts.
+    """
+    target_mps = config["targetMpsVersion"]
+    shared_dir = ROOT_DIR / ".mps-shared" / target_mps
+    bundle_subdir = "Contents" if sys.platform == "darwin" else "mps"
+    shared_bundle = shared_dir / bundle_subdir
+
+    if shared_bundle.exists() and (shared_bundle / "jbr").exists():
+        return shared_bundle
+
+    shared_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check if any submodule already has an extracted bundle we can move into .mps-shared
+    for r in config["repos"]:
+        candidate = ROOT_DIR / r["path"] / "build" / "mps-bundle" / bundle_subdir
+        if candidate.exists() and not candidate.is_symlink() and (candidate / "jbr").exists() and not (candidate / "jbr").is_symlink():
+            print(f"[shared-bundle] Moving existing MPS {target_mps} bundle from {r['id']} into {shared_bundle}...")
+            shutil.move(str(candidate), str(shared_bundle))
+            # Strip any repo-specific -Didea.plugins.path lines from shared bin/*.vmoptions
+            bin_dir = shared_bundle / "bin"
+            if bin_dir.exists():
+                for vmopt in bin_dir.glob("*.vmoptions"):
+                    lines = [
+                        line for line in vmopt.read_text(encoding="utf-8", errors="ignore").splitlines()
+                        if not line.strip().startswith("-Didea.plugins.path=")
+                    ]
+                    vmopt.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            return shared_bundle
+
+    # Otherwise build it once in mps-gradle-scripts and move it
+    root_repo = get_repo_by_id(config, "mps-gradle-scripts")
+    if not root_repo:
+        raise RuntimeError("mps-gradle-scripts not found in repos.json")
+    root_repo_path = ROOT_DIR / root_repo["path"]
+    print(f"[shared-bundle] Preparing initial MPS {target_mps} bundle in mps-gradle-scripts...")
+    subprocess.run(["./gradlew", "prepareMps"], cwd=root_repo_path, check=True)
+    candidate = root_repo_path / "build" / "mps-bundle" / bundle_subdir
+    shutil.move(str(candidate), str(shared_bundle))
+    bin_dir = shared_bundle / "bin"
+    if bin_dir.exists():
+        for vmopt in bin_dir.glob("*.vmoptions"):
+            lines = [
+                line for line in vmopt.read_text(encoding="utf-8", errors="ignore").splitlines()
+                if not line.strip().startswith("-Didea.plugins.path=")
+            ]
+            vmopt.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return shared_bundle
+
+
+def provision_repo_mps_bundle(repo: Dict[str, Any], config: Dict[str, Any]) -> None:
+    """
+    Provisions <repo>/build/mps-bundle and <repo>/build/download using symlinks to
+    the shared MPS/JBR installation (.mps-shared/<mpsVersion>) and global Gradle cache,
+    while giving each repo its own isolated bin/*.vmoptions and dependencies/ directory.
+    """
+    shared_bundle = ensure_shared_mps_bundle(config)
+    repo_path = ROOT_DIR / repo["path"]
+    bundle_subdir = "Contents" if sys.platform == "darwin" else "mps"
+    repo_bundle_root = repo_path / "build" / "mps-bundle"
+    repo_bundle = repo_bundle_root / bundle_subdir
+
+    # If repo_bundle is an unshared full directory (~2GB), replace it with the lightweight linked layout
+    if repo_bundle.exists() and not (repo_bundle / "lib").is_symlink():
+        print(f"[{repo['id']}] Replacing duplicate 2GB MPS bundle with shared bundle links...")
+        shutil.rmtree(repo_bundle, ignore_errors=True)
+
+    repo_bundle.mkdir(parents=True, exist_ok=True)
+    deps_dir = repo_bundle_root / "dependencies"
+    deps_dir.mkdir(parents=True, exist_ok=True)
+
+    # Link all entries from shared_bundle except 'bin' and 'system'
+    for item in shared_bundle.iterdir():
+        if item.name in ("bin", "system"):
+            continue
+        target_link = repo_bundle / item.name
+        if not target_link.exists() and not target_link.is_symlink():
+            target_link.symlink_to(item.resolve())
+
+    # Copy 'bin' (~1.1MB) and configure repo-specific -Didea.plugins.path in *.vmoptions
+    repo_bin = repo_bundle / "bin"
+    if repo_bin.is_symlink():
+        repo_bin.unlink()
+    if not repo_bin.exists():
+        shutil.copytree(shared_bundle / "bin", repo_bin, symlinks=True)
+        deps_abs = str(deps_dir.resolve())
+        for vmopt in repo_bin.glob("*.vmoptions"):
+            lines = [
+                line for line in vmopt.read_text(encoding="utf-8", errors="ignore").splitlines()
+                if not line.strip().startswith("-Didea.plugins.path=")
+            ]
+            lines.append(f"-Didea.plugins.path={deps_abs}")
+            vmopt.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    # On macOS, ensure build/mps-bundle/mps -> Contents symlink exists
+    if sys.platform == "darwin":
+        mps_link = repo_bundle_root / "mps"
+        if not mps_link.exists() and not mps_link.is_symlink():
+            mps_link.symlink_to(repo_bundle.resolve())
+
+    # Ensure build/dependencies -> build/mps-bundle/dependencies symlink exists
+    legacy_deps = repo_path / "build" / "dependencies"
+    if not legacy_deps.exists() and not legacy_deps.is_symlink():
+        legacy_deps.symlink_to(deps_dir.resolve())
+
+    # Link MPS zip and JBR tar.gz in build/download from ~/.gradle/caches/mps-downloads so downloadMps/downloadJbr skip
+    download_dir = repo_path / "build" / "download"
+    download_dir.mkdir(parents=True, exist_ok=True)
+    gradle_cache = Path.home() / ".gradle" / "caches" / "mps-downloads"
+    mps_zip_name = f"mps-{config['targetMpsVersion']}.zip"
+    cached_mps_zip = gradle_cache / "mps" / mps_zip_name
+    local_mps_zip = download_dir / mps_zip_name
+    if cached_mps_zip.exists():
+        if local_mps_zip.exists() and not local_mps_zip.is_symlink():
+            local_mps_zip.unlink()
+        if not local_mps_zip.exists():
+            local_mps_zip.symlink_to(cached_mps_zip.resolve())
+
+    jbr_cache_dir = gradle_cache / "jbr"
+    if jbr_cache_dir.exists():
+        for jbr_archive in jbr_cache_dir.glob(f"jbr-{config['targetJbrVersion']}*.tar.gz"):
+            local_jbr = download_dir / jbr_archive.name
+            if local_jbr.exists() and not local_jbr.is_symlink():
+                local_jbr.unlink()
+            if not local_jbr.exists():
+                local_jbr.symlink_to(jbr_archive.resolve())
+
+
 def run_gradle(repo: Dict[str, Any], config: Dict[str, Any], task: str, mode: str = "local", local_only: Optional[List[str]] = None, extra_args: Optional[List[str]] = None) -> None:
     repo_path = ROOT_DIR / repo["path"]
+
+    # Provision lightweight shared MPS/JBR bundle links before prepareMps or openProjectInMps
+    if task in ("prepareMps", "openProjectInMps"):
+        provision_repo_mps_bundle(repo, config)
 
     # When --mode remote is used on prepare, delete download plugins and bundle dependencies
     # so Gradle re-downloads them from remote GitHub release URLs instead of reusing local caches.
@@ -339,8 +472,6 @@ def run_gradle(repo: Dict[str, Any], config: Dict[str, Any], task: str, mode: st
 
     plugin_args = get_local_plugin_args(config, mode=mode, local_only=local_only)
     cmd = ["./gradlew", task] + plugin_args
-    if task == "prepareMps" and mode == "remote":
-        cmd.append("--rerun-tasks")
     if extra_args:
         cmd.extend(extra_args)
 
@@ -383,6 +514,21 @@ def cmd_open(args: argparse.Namespace) -> None:
 
     print(f"Opening project '{repo['id']}' in MPS 2026.1 (mode: {args.mode})...")
     run_gradle(repo, config, "openProjectInMps", mode=args.mode, local_only=args.local_only)
+
+def cmd_share_bundles(args: argparse.Namespace) -> None:
+    config = load_config()
+    target = args.repo.lower() if args.repo else "all"
+    ensure_shared_mps_bundle(config)
+
+    for repo in config["repos"]:
+        if target != "all" and repo["id"].lower() != target and repo["path"].lower() != target:
+            continue
+        repo_path = ROOT_DIR / repo["path"]
+        if not repo_path.exists():
+            continue
+        provision_repo_mps_bundle(repo, config)
+    print("Shared MPS/JBR bundle linked across target repositories.")
+
 
 def cmd_mcp_config(args: argparse.Namespace) -> None:
     repo_id = args.repo or "mps-gradle-scripts"
@@ -466,6 +612,10 @@ def main() -> None:
     p_open.add_argument("repo", help="Target repository ID")
     add_mode_arguments(p_open)
 
+    # share-bundles
+    p_share = subparsers.add_parser("share-bundles", help="Deduplicate MPS/JBR bundles across submodules using .mps-shared symlinks")
+    p_share.add_argument("repo", nargs="?", default="all", help="Repository ID or 'all'")
+
     # mcp-config
     p_mcp = subparsers.add_parser("mcp-config", help="Show MCP configuration for MPS 2026.1")
     p_mcp.add_argument("repo", nargs="?", default="", help="Repository ID")
@@ -490,6 +640,8 @@ def main() -> None:
         cmd_test(args)
     elif args.command == "open":
         cmd_open(args)
+    elif args.command == "share-bundles":
+        cmd_share_bundles(args)
     elif args.command == "mcp-config":
         cmd_mcp_config(args)
     else:

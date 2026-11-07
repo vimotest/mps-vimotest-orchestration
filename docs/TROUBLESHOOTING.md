@@ -138,3 +138,40 @@ The ViMoTest ecosystem historically uses bare versions for all release tags:
 git tag -a 2026.1.0 -m "Release 2026.1.0"
 ```
 
+---
+
+## 7. Gradle 8.10 vs. JDK 25 Bytecode in CI (`mps-alfi` `compitest`)
+
+### Symptom
+In GitHub Actions on `mps-alfi`, the `compitest` job fails with `UnsupportedClassVersionError` (class file version `69.0`, Java 25) when running with JDK 21—or Gradle fails to compile Groovy build scripts if the runner's primary `JAVA_HOME` is switched to JDK 25.
+
+### Root Cause
+MPS 2026.1 runs on JBR 25 and compiles generated Java classes (`alfi.compitest.jar`) targeting Java 25 bytecode (`69.0`). However, Gradle 8.10.2 requires JDK 21 to evaluate its Groovy DSL scripts reliably in CI.
+
+### Solution
+Install both JDK 25 and JDK 21 in the `compitest` workflow job (leaving JDK 21 as the active `JAVA_HOME` for Gradle), and pass `COMPITEST_JAVA: ${{ env.JAVA_HOME_25_X64 }}/bin/java` to `CompareTestMain.groovy` so the compiled test bytecode executes on Java 25 while Gradle runs on Java 21.
+
+---
+
+## 8. Placeholder `TODO:` Text in Automated GitHub Release Notes
+
+### Symptom
+Published GitHub Releases show raw template text such as:
+```
+TODO: write changes in refs/tags/2026.1.0
+TODO: integrate into https://github.com/vimotest/mps-vimotest-samples
+```
+
+### Root Cause
+The shared `.github/workflows/github-actions-release.yaml` template creates a draft prerelease with `TODO:` placeholders in the `body` field. If published via `gh release edit --draft=false` without `--notes`, the placeholder text remains visible.
+
+### Solution
+Always pass explicit `--title` and `--notes` when publishing a release via `gh release edit`:
+```bash
+gh release edit 2026.1.0 -R <owner>/<repo> \
+  --draft=false --prerelease=false --latest \
+  --title "Release 2026.1.0" \
+  --notes "Release 2026.1.0 for JetBrains MPS 2026.1."
+```
+
+
